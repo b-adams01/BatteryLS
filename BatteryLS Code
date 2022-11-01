@@ -1,0 +1,105 @@
+// Example usage
+const widget = new ListWidget()
+
+let progressStack = await progressCircle(widget,35)
+
+let sf = SFSymbol.named("battery.100")
+sf.applyFont(Font.regularSystemFont(26))
+sf = progressStack.addImage(sf.image)
+sf.imageSize = new Size(35,35)
+sf.tintColor = new Color("#fafafa")
+
+
+widget.presentAccessoryCircular() // Does not present correctly
+Script.setWidget(widget)
+Script.complete()
+
+async function progressCircle(
+  on,
+  value = 50,
+  colour = "hsl(120, 100%, 50%)",
+  background = "hsl(0, 100%, 50%)",
+  size = 56,
+  barWidth = 4.5
+) {
+  if (value > 1) {
+    value /= 100
+  }
+  if (value < 0) {
+    value = 0
+  }
+  if (value > 1) {
+    value = 1
+  }
+
+  async function isUsingDarkAppearance() {
+    return !Color.dynamic(Color.white(), Color.black()).red
+  }
+  let isDark = await isUsingDarkAppearance()
+
+  if (colour.split("-").length > 1) {
+    if (isDark) {
+      colour = colour.split("-")[1]
+    } else {
+      colour = colour.split("-")[0]
+    }
+  }
+
+  if (background.split("-").length > 1) {
+    if (isDark) {
+      background = background.split("-")[1]
+    } else {
+      background = background.split("-")[0]
+    }
+  }
+
+  let w = new WebView()
+  await w.loadHTML('<canvas id="c"></canvas>')
+
+  let base64 = await w.evaluateJavaScript(
+    `
+  let colour = "${colour}",
+    background = "${background}",
+    size = ${size}*3,
+    lineWidth = ${barWidth}*4,
+    percent = ${value * 100}
+      
+  let canvas = document.getElementById('c'),
+    c = canvas.getContext('2d')
+  canvas.width = size
+  canvas.height = size
+  let posX = canvas.width / 2,
+    posY = canvas.height / 2,
+    onePercent = 360 / 100,
+    result = onePercent * percent
+  c.lineCap = 'round'
+  c.beginPath()
+  c.arc( posX, posY, (size-lineWidth-1)/2, (Math.PI/180) * 270, (Math.PI/180) * (270 + 360) )
+  c.strokeStyle = background
+  c.lineWidth = lineWidth 
+  c.stroke()
+  c.beginPath()
+  c.strokeStyle = colour
+  c.lineWidth = lineWidth
+  c.arc( posX, posY, (size-lineWidth-1)/2, (Math.PI/180) * 270, (Math.PI/180) * (270 + result) )
+  c.stroke()
+  completion(canvas.toDataURL().replace("data:image/png;base64,",""))`,
+    true
+  )
+  const image = Image.fromData(Data.fromBase64String(base64))
+
+
+
+// Provide battery percentage
+
+
+  
+  let stack = on.addStack()
+  stack.size = new Size(size, size)
+  stack.backgroundImage = image
+  stack.centerAlignContent()
+  let padding = barWidth * 2
+  stack.setPadding(padding, padding, padding, padding)
+
+  return stack
+}
